@@ -88,6 +88,105 @@ The platform is structured into three dedicated interactive analytical environme
 
 ---
 
+## 🏛️ Data Architecture & Relational Modeling
+
+The analytical data engine is designed following **Ralph Kimball's dimensional modeling methodology (Star Schema)** to optimize analytical query throughput in Power BI's VertiPaq columnar in-memory engine, enforce strict referential integrity, and eliminate filter ambiguity.
+
+### 1. Relational Entity-Relationship Diagram (ERD)
+
+```mermaid
+erDiagram
+    dim_date ||--o{ fact_financial_performance : "date_key (1:M)"
+    dim_segment ||--o{ fact_financial_performance : "segment_id (1:M)"
+    dim_country ||--o{ fact_financial_performance : "country_id (1:M)"
+    dim_date ||--o{ jpm_financial_ml_enriched : "Period_End_Date (1:M)"
+    jpm_financial_ml_enriched ||--o{ jpm_financials_tidy_long : "Period / Quarter (1:M)"
+    Capital_Structure ||--o{ jpm_financial_ml_enriched : "Standalone Bridge (M:M Disconnected)"
+
+    dim_date {
+        int date_key PK
+        date full_date
+        int calendar_year
+        string quarter_name
+        int month_number
+        string month_name
+    }
+
+    dim_segment {
+        string segment_id PK
+        string segment_name
+        string channel_type
+    }
+
+    dim_country {
+        string country_id PK
+        string country_name
+        string region
+    }
+
+    jpm_financial_ml_enriched {
+        string Quarter PK
+        date Period_End_Date FK
+        decimal Total_net_revenue
+        decimal Net_interest_income
+        decimal Non_interest_income
+        decimal Operating_expenses
+        decimal Net_income
+        decimal Provision_for_credit_losses
+        decimal Deposits
+        decimal Loans_net_of_allowance
+        decimal Total_assets
+        string is_forecast
+        decimal Total_net_revenue_lower_95
+        decimal Total_net_revenue_upper_95
+        string ml_anomaly_flag
+        decimal ml_anomaly_score
+    }
+
+    jpm_financials_tidy_long {
+        string Period FK
+        string Statement
+        string Metric
+        decimal Value_Numeric
+        string Unit
+    }
+
+    Capital_Structure {
+        string Component PK
+        decimal Amount_Billion
+        int Sort_Order
+    }
+```
+
+---
+
+### 2. Table Classifications, Cardinality & Schema Dictionary
+
+| Table Name | Model Role | Primary Key (PK) | Foreign Keys (FK) | Cardinality | Filter Direction | Granularity |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`dim_date`** | Conformed Dimension | `date_key` | None | `1` to `Many` | Single (`dim` $\rightarrow$ `fact`) | 1 row per calendar day |
+| **`dim_segment`** | Dimension | `segment_id` | None | `1` to `Many` | Single (`dim` $\rightarrow$ `fact`) | 1 row per business segment |
+| **`dim_country`** | Dimension | `country_id` | None | `1` to `Many` | Single (`dim` $\rightarrow$ `fact`) | 1 row per geographic market |
+| **`jpm_financial_ml_enriched`** | Core Fact & ML Table | `Quarter` | `Period_End_Date` | `1` to `Many` | Bi-directional / Single | 1 row per fiscal quarter (12Q) |
+| **`jpm_financials_tidy_long`** | Normalized Outrigger | Composite | `Period` | `Many` to `1` | Single | 1 row per financial line-item |
+| **`Capital_Structure`** | Analytical Bridge | `Component` | None | Disconnected | Disconnected / DAX | 1 row per funding component (3 rows) |
+| **`_JPM_Measures`** | Measure Container | None (Virtual) | None | N/A | N/A | Decoupled calculation store |
+
+---
+
+### 3. Dimensional Design & Performance Optimization Principles
+
+1. **Strict Star Schema over Snowflake Normalization:**
+   * Dimension tables (`dim_segment`, `dim_country`, `dim_date`) are de-normalized to 1NF/3NF flat dimensions to minimize join latency and optimize dictionary encoding in the VertiPaq engine.
+2. **Single-Direction Filter Propagation:**
+   * Filters flow strictly downstream from dimensions to fact tables (`1:Many`). Bi-directional cross-filtering is avoided across transactional facts to eliminate ambiguous filter paths and circular calculation loops.
+3. **Chronological Time-Intelligence Traversal:**
+   * String-based quarter identifiers (`Q4-2024`, `Q1-2025`, etc.) are sorted by explicit chronological date keys (`Period_End_Date`), preventing alphabetical sorting bugs (`Q1` $\rightarrow$ `Q2` $\rightarrow$ `Q3` $\rightarrow$ `Q4`).
+4. **Decoupled DAX Measure Container:**
+   * All business logic, variance calculations, and ML aggregations are encapsulated inside the virtual table `_JPM_Measures`, insulating UI visuals from changes in underlying physical column schemas.
+
+---
+
 ## 🤖 Machine Learning Methodology
 
 The machine learning pipeline is fully implemented in Python using `scikit-learn` ([`python/financial_ml_forecasting.py`](python/financial_ml_forecasting.py)):
@@ -107,28 +206,9 @@ The machine learning pipeline is fully implemented in Python using `scikit-learn
 
 ---
 
-## 📐 Data Model & DAX Engineering
+## 🧮 DAX Calculation Library & Business Logic
 
-The Power BI data model connects the ML-enriched quarterly time series with normalized financial statement structures and custom calculated dimension tables:
-
-```
-┌──────────────────────────────────────┐       ┌─────────────────────────────────────┐
-│      jpm_financial_ml_enriched       │       │          Capital_Structure          │
-├──────────────────────────────────────┤       ├─────────────────────────────────────┤
-│ Quarter (PK)                         │       │ Component                           │
-│ Period_End_Date                      │       │ Amount_Billion                      │
-│ Net_interest_income                  │       │ Sort_Order                          │
-│ Non_interest_income                  │       └─────────────────────────────────────┘
-│ Total_net_revenue                    │
-│ Provision_for_credit_losses          │       ┌─────────────────────────────────────┐
-│ Operating_expenses                   │       │       jpm_financials_tidy_long      │
-│ Net_income                           │       ├─────────────────────────────────────┤
-│ Deposits / Loans / Assets            │       │ Period                              │
-│ is_forecast                          │       │ Statement (Cash Flow, Income, BS)   │
-│ Total_net_revenue_lower_95 / upper_95│       │ Metric                              │
-│ ml_anomaly_flag / ml_anomaly_score   │       │ Value_Numeric                       │
-└──────────────────────────────────────┘       └─────────────────────────────────────┘
-```
+The Power BI analytical calculations are housed in the dedicated virtual table `_JPM_Measures`:
 
 ### Core DAX Measures (`_JPM_Measures`)
 
