@@ -1,0 +1,7 @@
+product_line_id,org_id,product_line,category
+PL_ENT,ORG_COM,Enterprise Licensing & SaaS,Software Subscriptions
+PL_PRO,ORG_COM,Professional Advisory Services,Consulting
+PL_CLD,ORG_TEC,Cloud Infrastructure & APIs,Cloud Services
+PL_CYB,ORG_TEC,Cybersecurity & Data Governance,Security
+PL_HWP,ORG_OPS,Hardware Systems & Edge Devices,Hardware
+PL_LOG,ORG_OPS,Supply Chain & Fulfillment Ops,Logistics

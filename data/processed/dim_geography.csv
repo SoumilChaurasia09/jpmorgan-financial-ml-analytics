@@ -1,0 +1,10 @@
+geo_id,region,sub_region,market_tier,executive_owner
+GEO_WEU,EMEA,Western Europe,Tier 1,Sophie Laurent
+GEO_DAC,EMEA,DACH,Tier 1,Markus Weber
+GEO_UKI,EMEA,UK & Ireland,Tier 1,Oliver Smith
+GEO_NOR,EMEA,Nordics,Tier 2,Freja Lind
+GEO_NAM,Americas,North America,Tier 1,Michael Hayes
+GEO_LAM,Americas,Latin America,Tier 2,Carlos Silva
+GEO_GCH,APAC,Greater China,Tier 1,Wei Chen
+GEO_ANZ,APAC,Japan & ANZ,Tier 1,Kenji Sato
+GEO_SEA,APAC,Southeast Asia,Tier 2,Priya Sharma

@@ -1,0 +1,6 @@
+segment_id,segment_name,channel_type
+SEG01,Channel Partners,B2B
+SEG02,Enterprise,B2B
+SEG03,Government,B2G
+SEG04,Midmarket,B2B
+SEG05,Small Business,B2B/B2C
