@@ -209,8 +209,7 @@ pip install -r requirements.txt
 python python/financial_ml_forecasting.py
 ```
 *Outputs:*
-* Generates `data/processed/jpm_financial_ml_enriched.csv`
-* Renders evaluation chart `screenshots/07_jpm_ml_forecast_and_anomalies.png`
+* Generates `data/processed/jpm_financial_ml_enriched.csv` (12 quarters + ML forward predictions + 95% confidence intervals + anomaly scores)
 
 ### 4. Open Power BI
 * Launch Power BI Desktop and open the report file under `powerbi/`.
